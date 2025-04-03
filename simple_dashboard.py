@@ -4,6 +4,7 @@ import holoviews as hv
 import panel as pn
 import hvplot.pandas
 import geopandas as gpd
+import bokeh
 import warnings
 
 # Filter warnings
@@ -17,7 +18,7 @@ pn.extension(design='material')
 print(f"pandas: {pd.__version__}")
 print(f"holoviews: {hv.__version__}")
 print(f"panel: {pn.__version__}")
-print(f"bokeh: {hv.extension.bokeh.__version__}")
+print(f"bokeh: {bokeh.__version__}")
 
 # Read the dataset
 df = pd.read_csv('sample_dataset.csv')
@@ -116,14 +117,35 @@ def create_va_map(filtered_df):
     va_counties['CLASS_1_PERCENT'] = va_counties['CLASS_1_PERCENT'].fillna(0)
     va_counties['TOTAL_COUNT'] = va_counties['TOTAL_COUNT'].fillna(0)
     
-    # SIMPLEST APPROACH: Just use a fixed color
-    # This is the most compatible approach that should work in almost any environment
+    # Pre-compute colors using named colors rather than hex values
+    # Define color bins for percentages (0-100)
+    def get_color_for_percent(percent):
+        if percent == 0:
+            return 'lightgray'  # Counties with no data
+        elif percent < 20:
+            return 'lightblue'
+        elif percent < 40:
+            return 'skyblue'
+        elif percent < 60:
+            return 'royalblue'
+        elif percent < 80:
+            return 'mediumblue'
+        else:
+            return 'darkblue'
+    
+    # Apply the color function to create a new column
+    va_counties['map_color'] = va_counties['CLASS_1_PERCENT'].apply(get_color_for_percent)
+    
+    # Create the map using pre-computed named colors for maximum compatibility
     va_map = va_counties.hvplot.polygons(
         geo=True,
-        color='blue',  # Fixed color instead of dynamic coloring
-        title='Virginia County Map',
+        color='map_color',  # Use the pre-computed color column
+        title='Virginia Classification Distribution by County',
+        hover_cols=['NAME', 'CLASS_1_COUNT', 'TOTAL_COUNT', 'CLASS_1_PERCENT'],
         height=400,
-        width=500
+        width=500,
+        line_color='black',  # Add county borders
+        line_width=0.5
     )
     
     return va_map
@@ -201,8 +223,8 @@ reset_button.on_click(reset_filters)
 
 # Create the interactive dashboard with maximum compatibility
 dashboard = pn.Column(
-    pn.pane.Markdown('# Simplified Compatible Dashboard'),
-    pn.pane.Markdown('## This version uses the simplest approaches for maximum compatibility'),
+    pn.pane.Markdown('# Interactive Classification Dashboard'),
+    pn.pane.Markdown('## Using named colors for maximum compatibility'),
     pn.Spacer(height=10),
     pn.Row(
         classification_selector,
